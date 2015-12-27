@@ -127,6 +127,7 @@ table(pred, testPredData$classe)</code></pre>
 </div>
 <div id="applying-the-model-to-the-given-test-data" class="section level1">
 <h1>Applying the model to the given test data</h1>
+<p>I apply the model to the test data, and create files to upload to the course website. The code below is from the course project website.</p>
 <pre class="r"><code>testData &lt;- read.csv('pml-testing.csv')
 answers &lt;- predict(modelFit, testData)</code></pre>
 <pre><code>## Loading required package: randomForest
