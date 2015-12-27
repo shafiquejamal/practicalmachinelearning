@@ -1,0 +1,90 @@
+---
+title: "Predicting Barbell Lift Technique"
+author: "Shafique Jamal"
+date: "December 25, 2015"
+output: html_document
+---
+
+# Executive Summary
+
+The goal of this project is to predict the manner in which participants performed barbell lifts. They performed these lifts correctly and incorrectly in 5 different ways. The data comes from this dataset:
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3vNRiOWVQ
+
+# Data preparation
+
+I drop variables that provide almost no information - variables that are mostly blank or NA. I then split the test data into another testing (learnData) and training (testPredData) set, which I call a learning set and a test prediction set. I will use the test prediction set to evaluate the performance of the model.
+
+```{r cachedChunk, cache=TRUE}
+library(caret)
+set.seed(9043)
+trainData <- read.csv('pml-training.csv')
+dim(trainData)
+trainDataFewerVars <- trainData[, unlist(lapply(trainData, function(x) { sum(is.na(x))/length(x) < 0.90 } ))]
+trainDataFewerVars <- trainDataFewerVars[, unlist(lapply(trainDataFewerVars, function(x) { sum(x == "")/length(x) < 0.90 } ))]
+# trainDataFewerVars <- trainDataFewerVars[sample(1:nrow(trainDataFewerVars), 2000, replace=FALSE),] # This line is for testing - so that I can run the code fast while developing
+dim(trainDataFewerVars)
+
+inTrain <- createDataPartition(y=trainDataFewerVars$classe, p=0.60, list=FALSE)
+learnData <- trainDataFewerVars[inTrain,]
+testPredData <- trainDataFewerVars[-inTrain,]
+
+```
+
+# Training
+
+I train the model on the learning set, using 10-Fold repeated cross validation and Random Forests on the training data.
+
+```{r cachedChunk1, cache=TRUE}
+modelFit <- train(classe ~ ., trControl=trainControl(method="cv", number=5), data=learnData, method="rf", prox=TRUE)
+```
+
+# Evaluation
+
+I evaluate the model on the test prediction set.
+
+```{r cachedChunk2, cache=TRUE}
+pred <- predict(modelFit, testPredData)
+testPredData$correctlyPredicted <- pred == testPredData$classe
+table(pred, testPredData$classe)
+```
+
+The fraction of predicted classe values that are correctly predicted is:
+
+```{r}
+mean(testPredData$correctlyPredicted)
+```
+
+The fraction of predicted classe values that are incorrectly predicted is:
+
+```{r}
+1-mean(testPredData$correctlyPredicted)
+```
+
+In percent, this is:
+
+```{r }
+100*(1-mean(testPredData$correctlyPredicted))
+```
+
+I expect the out of sample error to be approximately equal to the above number - about 0 %. This is because the above number was achieved by applying the model to samples that were not used to train the model.
+
+# Applying the model to the given test data
+
+```{r}
+testData <- read.csv('pml-testing.csv')
+answers <- predict(modelFit, testData)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
+```
+
